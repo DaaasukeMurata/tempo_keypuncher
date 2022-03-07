@@ -5,6 +5,10 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import chromedriver_binary
 import os
+import time
+
+SSO_ID = 'c302890'
+SSO_PASSWORD = 'dnten#DTEN09'
 
 
 def main():
@@ -14,8 +18,27 @@ def main():
     #     sys.exit(0)
 
     browser = init()
-    browser.get('https://www.yahoo.co.jp')
+    login_sso(browser)
+    deinit(browser)
 
+
+def login_sso(driver):
+    FORM_ID = 'username'
+    FORM_PASS = 'uid_password'
+    BUTTON_LOGIN = 'uid_submit'
+
+    driver.get('https://cws.local.denso-ten.com/cws/cws')
+
+    # input SSO ID/PASS
+    id = driver.find_element_by_id(FORM_ID)
+    id.send_keys(SSO_ID)
+    password = driver.find_element_by_id(FORM_PASS)
+    password.send_keys(SSO_PASSWORD)
+    login_button = driver.find_element_by_id(BUTTON_LOGIN)
+    login_button.click()
+
+    # # サイト内で他の画面に遷移させたければ
+    # driver.get('画面遷移させたいURL')
 
 
 def init():
@@ -32,6 +55,10 @@ def init():
     # driver = webdriver.Chrome(chrome_options=option)
     driver = webdriver.Chrome()
     return driver
+
+
+def deinit(driver):
+    driver.quit()
 
 
 if __name__ == '__main__':

@@ -2,13 +2,68 @@
 # coding: utf-8
 
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-import chromedriver_binary
+from selenium.webdriver.common.by import By
+from selenium.webdriver.edge import service as fs
+# from selenium.webdriver.chrome.options import Options
+import chromedriver_binary  # need to run 'pip install chromedriver-binary-auto'
 import os
 import time
+import json
 
-SSO_ID = 'c302890'
-SSO_PASSWORD = 'dnten#DTEN09'
+
+class AttendanceInfo:
+
+    def __init__(self):
+        self.driver = self._get_driver(browser_type='edge')
+        # setting data
+        self.SSO_ID = ''
+        self.SSO_PASS = ''
+        self._load_setting()    # load settings
+        self._login_sso()
+
+    def __del__(self):
+        self.driver.quit()
+
+    # load settings from ""./setting.json"
+    def _load_setting(self):
+        with open('./setting.json') as setting_file:
+            settings = json.load(setting_file)
+            self.SSO_ID = settings['SSO_ID']
+            self.SSO_PASS = settings['SSO_PASS']
+
+    def _get_driver(self, browser_type='edge'):
+        # OSの環境変数に、http_proxy, https_proxyがあるとselenium起動に失敗するため無効化
+        # localhostへのアクセスに失敗している？
+        os.environ['http_proxy'] = ''
+        os.environ['https_proxy'] = ''
+
+        # browser_typeに応じたdriverの取得
+        driver = None
+        browser = browser_type.lower()
+        if browser == 'edge':
+            edge_service = fs.Service(executable_path='./msedgedriver.exe')
+            driver = webdriver.Edge(service=edge_service)
+        elif browser == 'chrome':
+            driver = webdriver.Chrome()
+        else:
+            print('ERROR: browser_type : ', browser_type, ' is invalid.')
+        return driver
+
+    def _login_sso(self):
+        SSO_URL = 'https://cws.local.denso-ten.com/cws/cws'
+        FORM_ID = 'username'
+        FORM_PASS = 'uid_password'
+        BUTTON_LOGIN = 'uid_submit'
+
+        self.driver.get(SSO_URL)
+
+        # input SSO ID/PASS
+        id = self.driver.find_element(by=By.ID, value=FORM_ID)
+        id.send_keys(self.SSO_ID)
+        password = self.driver.find_element(by=By.ID, value=FORM_PASS)
+        password.send_keys(self.SSO_PASS)
+        login_button = self.driver.find_element(by=By.ID, value=BUTTON_LOGIN)
+        login_button.click()
 
 
 def main():
@@ -17,48 +72,8 @@ def main():
     #     print('[usage]python log_will_format.py [input log] [output log]')
     #     sys.exit(0)
 
-    browser = init()
-    login_sso(browser)
-    deinit(browser)
-
-
-def login_sso(driver):
-    FORM_ID = 'username'
-    FORM_PASS = 'uid_password'
-    BUTTON_LOGIN = 'uid_submit'
-
-    driver.get('https://cws.local.denso-ten.com/cws/cws')
-
-    # input SSO ID/PASS
-    id = driver.find_element_by_id(FORM_ID)
-    id.send_keys(SSO_ID)
-    password = driver.find_element_by_id(FORM_PASS)
-    password.send_keys(SSO_PASSWORD)
-    login_button = driver.find_element_by_id(BUTTON_LOGIN)
-    login_button.click()
-
-    # # サイト内で他の画面に遷移させたければ
-    # driver.get('画面遷移させたいURL')
-
-
-def init():
-    # OSの環境変数に、http_proxy, https_proxyがあるとselenium起動に失敗するため無効化
-    # localhostへのアクセスに失敗している？
-    os.environ['http_proxy'] = ''
-    os.environ['https_proxy'] = ''
-
-    # option = Options()
-    # PROXY = 'http://proxy.local.denso-ten.com:8080'
-    # option.add_argument('--proxy-server=%s' % PROXY)
-
-    print('start getting driver')
-    # driver = webdriver.Chrome(chrome_options=option)
-    driver = webdriver.Chrome()
-    return driver
-
-
-def deinit(driver):
-    driver.quit()
+    attendance = AttendanceInfo()
+    time.sleep(3)
 
 
 if __name__ == '__main__':

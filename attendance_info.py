@@ -11,6 +11,17 @@ import sys
 import os
 import time
 import json
+from logging import getLogger, StreamHandler, DEBUG
+
+
+class WorkTime:
+    """1日の勤怠時間"""
+
+    def __init__(self):
+        self.date = ''
+        self.day_of_week = ''
+        self.start_time = ''
+        self.end_time = ''
 
 
 class AttendanceInfo:
@@ -19,12 +30,16 @@ class AttendanceInfo:
     def __init__(self):
         self.driver = self._get_driver(browser_type='edge')
         # setting data
-        self.SSO_ID = ''
-        self.SSO_PASS = ''
+        self.SSO_ID = ''        # SSO ID. 設定ファイルから読み込む
+        self.SSO_PASS = ''      # SSO Password. 設定ファイルから読み込む
+        self.worktimes = []     # WorkTimeを入れる配列。これが勤怠時間
+
         self._load_setting()    # load settings
 
         self._login_sso()
-        self._get_attendace_info(year=2022, month=2)
+        self._get_attendance_info()
+
+        time.sleep(10)
 
     def __del__(self):
         self.driver.quit()
@@ -56,7 +71,13 @@ class AttendanceInfo:
         browser = browser_type.lower()
         if browser == 'edge':
             edge_service = fs.Service(executable_path='./msedgedriver.exe')
-            driver = webdriver.Edge(service=edge_service)
+            # "システムに接続されたデバイスが機能していません。 (0x1F)"というerrを表示させない対応
+            options = webdriver.EdgeOptions()
+            options.add_experimental_option(
+                'excludeSwitches', ['enable-logging'])
+            options.use_chromium = True
+            driver = webdriver.Edge(service=edge_service, options=options)
+
         elif browser == 'chrome':
             driver = webdriver.Chrome()
         else:
@@ -83,12 +104,12 @@ class AttendanceInfo:
         btn_login = self.driver.find_element(by=By.ID, value=BUTTON_LOGIN)
         btn_login.click()
 
-    def _get_attendace_info(self, year=2022, month=3):
+    def _get_attendance_info(self, year=-1, month=-1):
         """勤怠情報の取得
 
         Args:
-            year (int)  : 取得年(ex 2022)
-            montn (int) : 取得月(ex 3)
+            year (int)  : 取得年(ex 2022). 省略可.
+            montn (int) : 取得月(ex 3). 省略可
         """
         ATTENDANCE_URL = 'https://cws.local.denso-ten.com/cws/cws?@SID=null&@SUB=root.cws.shuro.personal.aero_personal.aero_personal_menu008&@SN=root.cws.shuro.personal.aero_personal.aero_personal_menu008&@FN=form_aero_menu&@ACTION_LOG_TXT=幹部社員時間外実績照会'
         FORM_YEAR = 'TCDR_NTYEAR'
@@ -98,10 +119,13 @@ class AttendanceInfo:
         self.driver.get(ATTENDANCE_URL)
 
         # input 年月
-        form_year = self.driver.find_element(by=By.ID, value=FORM_YEAR)
-        form_year.send_keys(year)
-        form_month = self.driver.find_element(by=By.ID, value=FORM_MONTH)
-        form_month.send_keys(month)
+        # -1(指定なし)の場合は
+        if year != -1 and month != -1:
+            form_year = self.driver.find_element(by=By.ID, value=FORM_YEAR)
+            form_year.send_keys(year)
+            form_month = self.driver.find_element(by=By.ID, value=FORM_MONTH)
+            form_month.send_keys(month)
+
         btn_search = self.driver.find_element(by=By.ID, value=BUTTON_SEARCH)
         btn_search.click()
 
@@ -110,16 +134,47 @@ class AttendanceInfo:
         element = wait.until(
             EC.element_to_be_clickable((By.ID, BUTTON_SEARCH)))
 
-        print('xxxxxxxxxxxxxxxx 検索ボタン clickable')
+        # get attendance table
+        # "社員名称"を含むtalbe(tbody)
+        elem_td = self.driver.find_element(
+            by=By.XPATH, value="//tr/td[text()='社員名称']")
+        table = elem_td.find_element(by=By.XPATH, value="../..")
+        trs = table.find_elements(by=By.TAG_NAME, value="tr")
 
-        time.sleep(10)
+        logging.debug('len(trs): ', len(trs))
+
+        # 先頭は"社員名称 日付 曜日 勤務名称 勤怠区分 出社打刻 退社打刻 管理用時間外"の項目名なので2項目目から取得
+        for tr in trs[1:-1]:
+            tds = tr.find_elements(by=By.TAG_NAME, value="td")
+
+            logging.debug('len(tds) : ', len(tds))
+
+            worktime = WorkTime()
+            # tdsの中身は、"社員名称 日付 曜日 勤務名称 勤怠区分 出社打刻 退社打刻 管理用時間外"の順番
+            worktime.date = tds[1].text
+            worktime.day_of_week = tds[2].text
+            worktime.start_time = tds[5].text
+            worktime.end_time = tds[6].text
+
+            self.worktimes.append(worktime)
+
+        print('len(worktimes) : ', len(self.worktimes))
+        for wt in self.worktimes:
+            print(wt.date, wt.day_of_week, wt.start_time, wt.end_time)
 
 
 def main():
     # argvs = sys.argv
     # if len(argvs) < 2:
     #     print('[usage]python log_will_format.py [input log] [output log]')
-    #     sys.exit(0)
+    #     sys.exit(0)FFF
+
+    logger = getLogger(__name__)
+    handler = StreamHandler()
+    handler.setLevel(DEBUG)
+    logger.setLevel(DEBUG)
+    logger.addHandler(handler)
+    logger.propagate = False
 
     attendance = AttendanceInfo()
     time.sleep(3)

@@ -9,3 +9,5 @@ __pycache__/
 *.manifest
 *.spec
 build/
+
+setting_copy.json

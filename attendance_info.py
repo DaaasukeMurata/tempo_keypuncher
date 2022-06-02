@@ -11,7 +11,8 @@ import sys
 import os
 import time
 import json
-from logging import getLogger, StreamHandler, DEBUG
+import logging
+# from logging import getLogger, basicConfig, StreamHandler, DEBUG, INFO
 
 
 class WorkTime:
@@ -27,6 +28,8 @@ class WorkTime:
 class AttendanceInfo:
     """勤怠情報を取得"""
 
+    logger = logging.getLogger(__name__)
+
     def __init__(self):
         self.driver = self._get_driver(browser_type='edge')
         # setting data
@@ -35,13 +38,13 @@ class AttendanceInfo:
         self.worktimes = []     # WorkTimeを入れる配列。これが勤怠時間
 
         self._load_setting()    # load settings
-
         self._login_sso()
         self._get_attendance_info()
 
-        time.sleep(10)
+        time.sleep(4)
 
     def __del__(self):
+        pass
         self.driver.quit()
 
     def _load_setting(self):
@@ -141,14 +144,11 @@ class AttendanceInfo:
         table = elem_td.find_element(by=By.XPATH, value="../..")
         trs = table.find_elements(by=By.TAG_NAME, value="tr")
 
-        logging.debug('len(trs): ', len(trs))
+        self.logger.debug('len(trs): ${len(trs)}')
 
         # 先頭は"社員名称 日付 曜日 勤務名称 勤怠区分 出社打刻 退社打刻 管理用時間外"の項目名なので2項目目から取得
         for tr in trs[1:-1]:
             tds = tr.find_elements(by=By.TAG_NAME, value="td")
-
-            logging.debug('len(tds) : ', len(tds))
-
             worktime = WorkTime()
             # tdsの中身は、"社員名称 日付 曜日 勤務名称 勤怠区分 出社打刻 退社打刻 管理用時間外"の順番
             worktime.date = tds[1].text
@@ -158,9 +158,10 @@ class AttendanceInfo:
 
             self.worktimes.append(worktime)
 
-        print('len(worktimes) : ', len(self.worktimes))
+        self.logger.debug('len(worktimes) : %s', len(self.worktimes))
         for wt in self.worktimes:
-            print(wt.date, wt.day_of_week, wt.start_time, wt.end_time)
+            self.logger.debug('%s %s %s %s', wt.date,
+                              wt.day_of_week, wt.start_time, wt.end_time)
 
 
 def main():
@@ -169,12 +170,25 @@ def main():
     #     print('[usage]python log_will_format.py [input log] [output log]')
     #     sys.exit(0)FFF
 
-    logger = getLogger(__name__)
-    handler = StreamHandler()
-    handler.setLevel(DEBUG)
-    logger.setLevel(DEBUG)
-    logger.addHandler(handler)
-    logger.propagate = False
+    ################
+    # for LOGGER -> 
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
+    # create console handler with a INFO log level
+    ch = logging.StreamHandler()
+    # ch.setLevel(logging.INFO)
+    ch.setLevel(logging.DEBUG)
+    # ch_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(message)s')
+    ch_formatter = logging.Formatter(
+        '%(filename)s - %(funcName)s : %(message)s')
+    ch.setFormatter(ch_formatter)
+
+    # add the handlers to the logger
+    # logger.addHandler(fh)
+    logger.addHandler(ch)
+    # <- for LOGGER
+    ################
 
     attendance = AttendanceInfo()
     time.sleep(3)

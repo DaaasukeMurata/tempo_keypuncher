@@ -10,4 +10,4 @@ __pycache__/
 *.spec
 build/
 
-setting_copy.json
+setting.json

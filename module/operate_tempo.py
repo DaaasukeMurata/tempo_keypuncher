@@ -81,7 +81,7 @@ class Tempo:
         Returns:
             なし
         """
-        # TempoServerにPostするため、データ成型
+        # TempoServerにPostするデータ作成
         syomi = '非正味'
         if is_primary_work:
             syomi = '正味'
@@ -106,6 +106,8 @@ class Tempo:
             self.ADD_URL, data=json.dumps(payload), headers=headers)
         self.logger.debug('result_post : %s', res)
         self.logger.debug('result_post.headers : %s', res.headers)
+
+        # TODO error処理
 
     def delete(self, worklog_id):
         """ 指定されたWorklogの削除
@@ -140,6 +142,7 @@ class Tempo:
             end_date.strftime('%Y-%m-%d')
         self.logger.debug('Search GET url: %s', url)
         res = self.session.get(url)
+        # TODO error処理
         res_data = res.json()
         self.logger.info('hit count: %s', len(res_data))
         # self.logger.debug('res_data: %s', json.dumps(res_data, indent=4))
@@ -150,67 +153,6 @@ class Tempo:
             worklog_ids.append(data['id'])  # 'id'に、worklog IDが入っている
         self.logger.info('ids: %s', worklog_ids)
         return worklog_ids
-
-    def do_deltest(self):
-        # Post find exising worklogs
-        # https://www.tempo.io/server-api-documentation/timesheets?hsLang=en#operation/searchWorklogs
-        payload = {
-            "from": "2022-05-22",
-            "to": "2022-06-4",
-            "worker": [
-                "JIRAUSER16417"
-            ]
-        }
-        self.logger.debug('')
-        self.logger.debug('find_payload : %s', payload)
-        headers = {'content-type': 'application/json'}
-        res = self.session.post(
-            'https://jira.geniie.net/rest/tempo-timesheets/4/worklogs/search', data=json.dumps(payload), headers=headers)
-        self.logger.debug('find_result : %s', res)
-        self.logger.debug('find_result.headers : %s', res.headers)
-        self.logger.debug('find_result.payload : %s', res.headers)
-
-    def do_addtest(self):
-        session = requests.session()
-
-        # セッション受け渡し
-        for cookie in self.driver.get_cookies():
-            self.logger.debug('cookie : %s', cookie)
-            session.cookies.set(cookie['name'], cookie['value'])
-        self.logger.debug('session.cookies : %s', session.cookies)
-
-        # # get cookie情報ちゃんとわたっているか確認　→ ログイン後のデータが取れており問題なし
-        # res = session.get(
-        #     'https://jira.geniie.net/secure/Tempo.jspa#/my-work/week?type=LIST')
-        # self.logger.debug('result_get : %s', res)
-        # self.logger.debug('result_get.text : %s', res.text)
-
-        # Post
-        payload = {
-            "attributes": {
-                "_正味／非正味_": {
-                    "name": "正味/非正味",
-                    "workAttributeId": 6,
-                    "value": "非正味"
-                }
-            },
-            # "billableSeconds": None,
-            # "originId": -1,
-            "worker": "JIRAUSER16417",
-            # "comment": "tempo_keypuncher",F
-            "started": "2022-06-03",
-            "timeSpentSeconds": 10800,
-            "originTaskId": "57880",
-            # "remainingEstimate": 0,
-            # "endDate": None,
-            # "includeNonWorkingDays": False
-        }
-        self.logger.debug('json.dumps(payload): %s', json.dumps(payload))
-        headers = {'content-type': 'application/json'}
-        res = session.post(
-            'https://jira.geniie.net/rest/tempo-timesheets/4/worklogs/', data=json.dumps(payload), headers=headers)
-        self.logger.debug('result_post : %s', res)
-        self.logger.debug('result_post.headers : %s', res.headers)
 
 
 def main():

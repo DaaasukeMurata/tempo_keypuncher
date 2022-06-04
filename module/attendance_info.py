@@ -2,20 +2,100 @@
 # coding: utf-8
 
 from logging import getLogger
+import logging
+import os
+import sys
 import json
+from time import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium import webdriver
+from selenium.webdriver.edge import service as fs
+import datetime
 
 
 class WorkTime:
-    """1日の勤怠時間"""
+    """1日の勤怠時間
+
+    Member:
+        date (datatime.date)       : 日付
+        start_time (datatime.time) : 開始時刻
+        end_time   (datatime.time) : 終了時刻
+        spent_time (datatime.timedelta) : 業務時間
+    """
 
     def __init__(self):
-        self.date = ''
-        self.day_of_week = ''
-        self.start_time = ''
-        self.end_time = ''
+        self.logger = getLogger('tempo_keypuncher')
+        self._date = None
+        self._start_time = None
+        self._end_time = None
+
+    @property
+    def date(self):
+        """ date (datatime.date) : 日付 """
+        return self._date
+
+    @date.setter
+    def date(self, val):
+        if type(val) is str:
+            # '2022/05/24' の形式
+            # self._date = datetime.datetime.strptime(val, '%Y/%m/%d').date
+            self._date = datetime.datetime.strptime(val, '%Y/%m/%d')
+            self._date = self._date.date()
+
+        elif type(val) is datetime.date:
+            self._date = val
+        else:
+            self.logger.error('setter with illigal val: %s', val)
+
+    @property
+    def start_time(self):
+        """ start_time (datatime.time) : 開始時刻 """
+        return self._start_time
+
+    @start_time.setter
+    def start_time(self, val):
+        if type(val) is str:
+            self._start_time = self._str2time(val)
+        elif type(val) is datetime.time:
+            self._start_time = val
+        else:
+            self.logger.error('setter with illigal val: %s', val)
+
+    @property
+    def end_time(self):
+        """ end_time (datatime.time) : 終了時刻 """
+        return self._end_time
+
+    @end_time.setter
+    def end_time(self, val):
+        if type(val) is str:
+            self._end_time = self._str2time(val)
+        elif type(val) is datetime.time:
+            self._end_time = val
+        else:
+            self.logger.error('setter with illigal val: %s', val)
+
+    @property
+    def spent_time(self):
+        """ spent_time (datatime.timedelta) : 業務時間　"""
+        if self._start_time is None or self._end_time is None:
+            return None
+        start = datetime.datetime.combine(
+            datetime.date.today(), self._start_time)
+        end = datetime.datetime.combine(
+            datetime.date.today(), self._end_time)
+        return end - start
+
+    def _str2time(self, str_val):
+        # '08:19'の形式
+        try:
+            wk = datetime.datetime.strptime(str_val, '%H:%M')
+            wk = wk.time()
+        except ValueError as e:
+            wk = None
+        return wk
 
 
 class AttendanceInfo:
@@ -39,6 +119,20 @@ class AttendanceInfo:
 
     def __del__(self):
         pass
+
+    def worktime(self, date):
+        """ 指定された日時のWorkTimeを取得
+            指定された日時が存在しない場合、Noneを返却
+
+            Args:
+                date (datetime.date): 日付
+            Returns:
+                WorkTime: 勤怠時間。
+        """
+        for wk in self.worktimes:
+            if wk.date == date:
+                return wk
+        return None
 
     def _load_setting(self):
         """load settings from ""./setting.json
@@ -106,14 +200,87 @@ class AttendanceInfo:
             tds = tr.find_elements(by=By.TAG_NAME, value="td")
             worktime = WorkTime()
             # tdsの中身は、"社員名称 日付 曜日 勤務名称 勤怠区分 出社打刻 退社打刻 管理用時間外"の順番
+            self.logger.debug('tds0: %s 1: %s 2: %s 3: %s 4: %s 5: %s 6: %s',
+                              tds[0].text, tds[1].text, tds[2].text, tds[3].text, tds[4].text, tds[5].text, tds[6].text)
             worktime.date = tds[1].text
-            worktime.day_of_week = tds[2].text
             worktime.start_time = tds[5].text
             worktime.end_time = tds[6].text
-
             self.worktimes.append(worktime)
 
         self.logger.debug('len(worktimes) : %s', len(self.worktimes))
         for wt in self.worktimes:
-            self.logger.debug('%s %s %s %s', wt.date,
-                              wt.day_of_week, wt.start_time, wt.end_time)
+            self.logger.debug('%s start: %s end: %s', wt.date,
+                              wt.start_time, wt.end_time)
+
+
+def main():
+    # argvs = sys.argv
+    # if len(argvs) < 2:
+    #     print('[usage]python log_will_format.py [input log] [output log]')
+    #     sys.exit(0)FFF
+
+    _logger_init()
+
+    driver = _browser()
+    attendance = AttendanceInfo(driver)
+    wktime = attendance.worktime(datetime.date(2022, 6, 1))
+    print(wktime.date)
+    print(wktime.start_time)
+    print(wktime.end_time)
+    print(wktime.spent_time)
+    driver.quit()
+
+
+def _logger_init():
+    # for LOGGER ----------->
+    logger = logging.getLogger('tempo_keypuncher')
+    logger.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()  # for console
+    # ch.setLevel(logging.INFO)
+    ch.setLevel(logging.DEBUG)
+    ch_formatter = logging.Formatter(
+        '%(filename)s - %(funcName)s : %(message)s')
+    ch.setFormatter(ch_formatter)
+    logger.addHandler(ch)
+    # <----------- for LOGGER
+
+
+def _browser(browser_type='edge'):
+    """browser_typeに応じたwebdriverの取得 
+
+    Args:
+        browser_type (str): 'edge' or 'chrome'
+
+    Return:
+        webdriver : webdriver for edge or chrome
+    """
+    # OSの環境変数に、http_proxy, https_proxyがあるとselenium起動に失敗するため無効化
+    # I guesss selenium fails to access localhost(127,0,0,*).
+    os.environ['http_proxy'] = ''
+    os.environ['https_proxy'] = ''
+
+    # browser_typeに応じたdriverの取得
+    driver = None
+    wk_browser = browser_type.lower()
+    if wk_browser == 'edge':
+        edge_service = fs.Service(executable_path='./msedgedriver.exe')
+        # "システムに接続されたデバイスが機能していません。 (0x1F)"というerrを表示させない対応
+        options = webdriver.EdgeOptions()
+        options.add_experimental_option(
+            'excludeSwitches', ['enable-logging'])
+        options.use_chromium = True
+        driver = webdriver.Edge(service=edge_service, options=options)
+
+    elif wk_browser == 'chrome':
+        driver = webdriver.Chrome()
+    else:
+        print('ERROR: browser_type : "%s" is invalid.' %
+              (browser_type), file=sys.stderr)
+        sys.exit(1)
+
+    driver.set_window_size(100, 200)
+    return driver
+
+
+if __name__ == '__main__':
+    main()

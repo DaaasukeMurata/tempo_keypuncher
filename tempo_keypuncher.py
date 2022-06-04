@@ -3,7 +3,6 @@
 
 import sys
 import os
-from telnetlib import Telnet
 import time
 import logging
 
@@ -55,6 +54,15 @@ def main():
     #     print('[usage]python log_will_format.py [input log] [output log]')
     #     sys.exit(0)FFF
 
+    _logger_init()
+
+    driver = browser()
+    attendance = AttendanceInfo(driver)
+    tempo = Tempo(driver)
+    driver.quit()
+
+
+def _logger_init():
     # for LOGGER ----------->
     logger = logging.getLogger('tempo_keypuncher')
     logger.setLevel(logging.DEBUG)
@@ -66,13 +74,6 @@ def main():
     ch.setFormatter(ch_formatter)
     logger.addHandler(ch)
     # <----------- for LOGGER
-
-    driver = browser()
-    attendance = AttendanceInfo(driver)
-    tempo = Tempo(driver)
-
-    time.sleep(5)
-    driver.quit()
 
 
 if __name__ == '__main__':

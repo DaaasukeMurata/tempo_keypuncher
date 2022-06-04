@@ -22,7 +22,7 @@ class AttendanceInfo:
     """勤怠情報を取得
 
     Args:
-        webdriver : selenium webdriver
+        webdriver (selenium.webdriver) : selenium webdriver
     """
 
     LOGIN_URL = 'https://cws.local.denso-ten.com/cws/cws'

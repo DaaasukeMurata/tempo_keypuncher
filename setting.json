@@ -1,4 +1,7 @@
 {
     "SSO_ID": "c302890",
-    "SSO_PASS": "xxxxxxxx"
+    "SSO_PASS": "xxxxxxxxxx",
+    "GENIIE_ID": "daisuke.murata@denso-ten.com",
+    "GENIIE_PASS": "xxxxxxxxxxxx",
+    "TEMPO_JIRAUSER": "JIRAUSERxxxxx"
 }

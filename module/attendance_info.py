@@ -6,7 +6,6 @@ import logging
 import os
 import sys
 import json
-from time import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -159,6 +158,13 @@ class AttendanceInfo:
         btn_login = self.driver.find_element(by=By.ID, value=BUTTON_LOGIN)
         btn_login.click()
 
+        # login filed?
+        # TODO page loadに時間かかっても下記動く？
+        if 'Password' in self.driver.title:
+            self.logger.warning(
+                'LOGIN FAILED. Please check SSO_ID and SSO_PASS in setting.json.')
+            sys.exit(0)
+
     def _get_attendance_info(self, year=-1, month=-1):
         """勤怠情報の取得
 
@@ -177,10 +183,12 @@ class AttendanceInfo:
         if year != -1 and month != -1:
             form_year = self.driver.find_element(by=By.ID, value=FORM_YEAR)
             form_year.send_keys(year)
-            form_month = self.driver.find_element(by=By.ID, value=FORM_MONTH)
+            form_month = self.driver.find_element(
+                by=By.ID, value=FORM_MONTH)
             form_month.send_keys(month)
 
-        btn_search = self.driver.find_element(by=By.ID, value=BUTTON_SEARCH)
+        btn_search = self.driver.find_element(
+            by=By.ID, value=BUTTON_SEARCH)
         btn_search.click()
 
         # wait until someid is clickable

@@ -10,7 +10,7 @@ from selenium import webdriver
 from selenium.webdriver.edge import service as fs
 
 from module.attendance_info import AttendanceInfo
-from module.operate_tempo import Tempo
+from module.tempo import Tempo
 
 
 def browser(browser_type='edge'):
@@ -45,6 +45,8 @@ def browser(browser_type='edge'):
         print('ERROR: browser_type : "%s" is invalid.' %
               (browser_type), file=sys.stderr)
         sys.exit(1)
+
+    driver.set_window_size(400, 600)
     return driver
 
 
@@ -70,7 +72,7 @@ def _logger_init():
     # ch.setLevel(logging.INFO)
     ch.setLevel(logging.DEBUG)
     ch_formatter = logging.Formatter(
-        '%(filename)s - %(funcName)s : %(message)s')
+        '%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s : %(message)s')
     ch.setFormatter(ch_formatter)
     logger.addHandler(ch)
     # <----------- for LOGGER
